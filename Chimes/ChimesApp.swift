@@ -3,12 +3,16 @@ import SwiftUI
 @main
 struct ChimesApp: App {
     @State var active: Bool = true
-    
+
     let player = Player()
 
-    var body : some Scene {
+    var body: some Scene {
         MenuBarExtra("Chimes", systemImage: "bell\(active ? "" : ".slash")") {
-            Toggle("Enable Chimes", isOn: $active)
+            Toggle("Enable Chimes", isOn: $active.onChange {
+                if !active {
+                    player.stop()
+                }
+            })
             Menu("Play Now") {
                 Button("First Quarter") {
                     player.playFirstQuarter()
@@ -34,3 +38,17 @@ struct ChimesApp: App {
         }
     }
 }
+
+extension Binding {
+    @MainActor
+    func onChange(_ handler: @escaping () -> Void) -> Binding<Value> {
+        Binding(
+            get: { self.wrappedValue },
+            set: { newValue in
+                self.wrappedValue = newValue
+                handler()
+            }
+        )
+    }
+}
+

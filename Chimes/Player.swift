@@ -4,17 +4,16 @@ class Player {
     private let engine = AVAudioEngine()
     private let sampler = AVAudioUnitSampler()
     private let sequencer: AVAudioSequencer
+    private let soundFontUrl = Bundle.main.url(
+        forResource: "Tubular Bells",
+        withExtension: "sf2"
+    )!
+    private var currentPlayId = 0
 
     init() {
         engine.attach(sampler)
         engine.connect(sampler, to: engine.mainMixerNode, format: nil)
-        self.sequencer = AVAudioSequencer(audioEngine: engine)
-        do {
-            try engine.start()
-            try loadSoundFont()
-        } catch {
-            print("Failed to start engine: \(error)")
-        }
+        sequencer = AVAudioSequencer(audioEngine: engine)
     }
 
     func playFirstQuarter() {
@@ -35,17 +34,16 @@ class Player {
         play([P2, P3, P4, P5], hour: hour)
     }
 
-    private func loadSoundFont() throws {
-        guard
-            let url = Bundle.main.url(
-                forResource: "Tubular Bells",
-                withExtension: "sf2"
-            )
-        else {
-            throw NSError(domain: "SoundFontNotFound", code: 1, userInfo: nil)
-        }
+    func stop() {
+        sequencer.stop()
+        sequencer.currentPositionInBeats = 0
+        engine.stop()
+        engine.reset()
+    }
+
+    private func loadSountFont() throws {
         try sampler.loadSoundBankInstrument(
-            at: url,
+            at: soundFontUrl,
             program: 16,
             bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
             bankLSB: UInt8(kAUSampler_DefaultBankLSB)
@@ -68,42 +66,64 @@ class Player {
     private let P5: [Note] = [.B3, .FSharp4, .GSharp4, .E4]
 
     private func play(_ phrases: [[Note]], hour: Int? = nil) {
-        let noteLength = 1.0
-        let interNoteDelay = 0.8
-        let interPhraseDelay = 1.0
-        let beforeStrikeDelay = 1.0
-        let interStrikeDelay = 2.0
+        currentPlayId += 1
+        let playId = currentPlayId
 
-        var t = DispatchTime.now()
-        for notes in phrases {
-            for note in notes {
-                playNote(note, at: t, length: noteLength)
-                t = t + interNoteDelay
-            }
-            t = t + interPhraseDelay
+        let noteLength: MusicTimeStamp = 2.0
+        let interNoteDelay: MusicTimeStamp = 1.75
+        let interPhraseDelay: MusicTimeStamp = 1.75
+        let beforeStrikeDelay: MusicTimeStamp = 2.5
+        let interStrikeDelay: MusicTimeStamp = 5.0
+
+        stop()
+        while let track = sequencer.tracks.first {
+            sequencer.removeTrack(track)
         }
 
+        let track = sequencer.createAndAppendTrack()
+        var time: MusicTimeStamp = 0.0
+        for phrase in phrases {
+            for note in phrase {
+                track.addEvent(makeEvent(note, noteLength), at: time)
+                time += interNoteDelay
+            }
+            time += interPhraseDelay
+        }
         if let hour {
-            t = t + beforeStrikeDelay
+            time += beforeStrikeDelay
             for _ in 0..<hour {
-                playNote(.E3, at: t, length: noteLength)
-                t = t + interStrikeDelay
+                track.addEvent(makeEvent(.E3, noteLength), at: time)
+                time += interStrikeDelay
+            }
+        }
+
+        do {
+            try engine.start()
+            try loadSountFont()
+            try sequencer.start()
+        } catch {
+            print("Failed to play: \(error)")
+        }
+
+        let extraSlack = 2.0
+        let duration = sequencer.seconds(forBeats: time) + extraSlack
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            [weak self] in
+            guard let self else { return }
+            if self.currentPlayId == playId {
+                self.stop()
             }
         }
     }
 
-    private func playNote(_ note: Note, at: DispatchTime, length: Double) {
-        self.queue.asyncAfter(deadline: at) { [weak self] in
-            guard let self else { return }
-            self.sampler.startNote(
-                note.rawValue,
-                withVelocity: 127,
-                onChannel: 0
-            )
-        }
-        self.queue.asyncAfter(deadline: at + length) { [weak self] in
-            guard let self else { return }
-            self.sampler.stopNote(note.rawValue, onChannel: 0)
-        }
+    private func makeEvent(_ note: Note, _ length: MusicTimeStamp)
+        -> AVMIDINoteEvent
+    {
+        return AVMIDINoteEvent(
+            channel: 0,
+            key: UInt32(note.rawValue),
+            velocity: 127,
+            duration: length
+        )
     }
 }
