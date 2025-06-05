@@ -23,8 +23,6 @@ See the [Wikipedia article][wq] for more information.
 
 ## License
 
-<a href="https://www.flaticon.com/free-icons/big-ben" title="big ben icons">Big ben icons created by Victoruler - Flaticon</a>
-
 © 2025 Mitchell Kember
 
 Chimes is available under the MIT License; see [LICENSE](LICENSE.md) for details.
