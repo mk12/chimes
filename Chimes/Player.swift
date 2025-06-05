@@ -115,7 +115,6 @@ class Player: ObservableObject {
             return
         }
 
-
         let duration = sequencer.seconds(forBeats: time)
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             [weak self] in
@@ -125,7 +124,8 @@ class Player: ObservableObject {
             if fadeMusic { music.fadeIn() }
         }
         let extraSlack = 2.0
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration + extraSlack) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + extraSlack)
+        {
             [weak self] in
             guard let self else { return }
             guard self.currentPlayId == playId else { return }

@@ -4,7 +4,7 @@ import SwiftUI
 struct ChimesApp: App {
     @State var active: Bool = true
 
-    @ObservedObject private var player : Player
+    @ObservedObject private var player: Player
     private let scheduler: Scheduler
 
     init() {
