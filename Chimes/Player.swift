@@ -1,14 +1,17 @@
 import AVFoundation
 
-class Player {
+class Player: ObservableObject {
+    @Published var isPlaying: Bool = false
+
     private let engine = AVAudioEngine()
     private let sampler = AVAudioUnitSampler()
     private let sequencer: AVAudioSequencer
+    private let music = Music()
+    private var currentPlayId = 0
     private let soundFontUrl = Bundle.main.url(
         forResource: "Tubular Bells",
         withExtension: "sf2"
     )!
-    private var currentPlayId = 0
 
     init() {
         engine.attach(sampler)
@@ -16,29 +19,28 @@ class Player {
         sequencer = AVAudioSequencer(audioEngine: engine)
     }
 
-    func playFirstQuarter() {
-        play([P1])
-    }
-
-    func playHalfHour() {
-        play([P2, P3])
-    }
-
-    func playThirdQuarter() {
-        play([P4, P5, P1])
-    }
-
-    /// - Parameter hour: 1–12 in the current cycle
-    ///   (use `Calendar.current.component(.hour, from: Date())`)
-    func playHour(_ hour: Int) {
-        play([P2, P3, P4, P5], hour: hour)
-    }
-
     func stop() {
+        isPlaying = false
         sequencer.stop()
         sequencer.currentPositionInBeats = 0
         engine.stop()
         engine.reset()
+    }
+
+    enum Chime {
+        case FirstQuarter
+        case HalfHour
+        case ThirdQuarter
+        case FullHour(Int)
+    }
+
+    func play(_ chime: Chime) {
+        switch chime {
+        case .FirstQuarter: play(phrases: [P1])
+        case .HalfHour: play(phrases: [P2, P3])
+        case .ThirdQuarter: play(phrases: [P4, P5, P1])
+        case .FullHour(let hour): play(phrases: [P2, P3, P4, P5], hour: hour)
+        }
     }
 
     private func loadSountFont() throws {
@@ -65,7 +67,7 @@ class Player {
     private let P4: [Note] = [.GSharp4, .E4, .FSharp4, .B3]
     private let P5: [Note] = [.B3, .FSharp4, .GSharp4, .E4]
 
-    private func play(_ phrases: [[Note]], hour: Int? = nil) {
+    private func play(phrases: [[Note]], hour: Int? = nil) {
         currentPlayId += 1
         let playId = currentPlayId
 
@@ -97,22 +99,37 @@ class Player {
             }
         }
 
+        isPlaying = true
+        let fadeMusic = music.isPlaying()
+        if fadeMusic {
+            music.fadeOut()
+        }
+
         do {
             try engine.start()
             try loadSountFont()
             try sequencer.start()
         } catch {
             print("Failed to play: \(error)")
+            stop()
+            return
         }
 
-        let extraSlack = 2.0
-        let duration = sequencer.seconds(forBeats: time) + extraSlack
+
+        let duration = sequencer.seconds(forBeats: time)
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             [weak self] in
             guard let self else { return }
-            if self.currentPlayId == playId {
-                self.stop()
-            }
+            guard self.currentPlayId == playId else { return }
+            isPlaying = false
+            if fadeMusic { music.fadeIn() }
+        }
+        let extraSlack = 2.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + extraSlack) {
+            [weak self] in
+            guard let self else { return }
+            guard self.currentPlayId == playId else { return }
+            self.stop()
         }
     }
 

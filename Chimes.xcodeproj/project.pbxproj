@@ -6,13 +6,33 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4D83C55C2DF133CE0010FD4E /* AppFocusFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D83C55B2DF133CE0010FD4E /* AppFocusFilter.swift */; };
+		4D83C55E2DF13FBD0010FD4E /* Music.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D83C55D2DF13FBD0010FD4E /* Music.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		4D83C5422DEFB3EE0010FD4E /* Chimes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chimes.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D83C55B2DF133CE0010FD4E /* AppFocusFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFocusFilter.swift; sourceTree = "<group>"; };
+		4D83C55D2DF13FBD0010FD4E /* Music.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Music.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4D83C55A2DF12C3C0010FD4E /* Exceptions for "Chimes" folder in "Chimes" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4D83C5412DEFB3EE0010FD4E /* Chimes */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4D83C5442DEFB3EE0010FD4E /* Chimes */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4D83C55A2DF12C3C0010FD4E /* Exceptions for "Chimes" folder in "Chimes" target */,
+			);
 			path = Chimes;
 			sourceTree = "<group>";
 		};
@@ -32,6 +52,8 @@
 		4D83C5392DEFB3EE0010FD4E = {
 			isa = PBXGroup;
 			children = (
+				4D83C55D2DF13FBD0010FD4E /* Music.swift */,
+				4D83C55B2DF133CE0010FD4E /* AppFocusFilter.swift */,
 				4D83C5442DEFB3EE0010FD4E /* Chimes */,
 				4D83C5432DEFB3EE0010FD4E /* Products */,
 			);
@@ -119,6 +141,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4D83C55E2DF13FBD0010FD4E /* Music.swift in Sources */,
+				4D83C55C2DF133CE0010FD4E /* AppFocusFilter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,11 +273,16 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Chimes/Chimes.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Chimes/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -275,11 +304,16 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Chimes/Chimes.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Chimes/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
