@@ -1,58 +1,43 @@
 import Foundation
+import ScriptingBridge
+import SwiftUI
 
 class Music {
-    private let isPlayingScript = NSAppleScript(
-        source: """
-            tell application "Music" to get player state
-            """
-    )!
+    private let musicApp = SBApplication(bundleIdentifier: "com.apple.Music")!
 
-    private let fadeOutScript = NSAppleScript(
-        source: """
-            tell application "Music"
-                repeat with i from 1 to 20
-                    set sound volume to 100 - (i * 5)
-                    delay 0.05
-                end repeat
-                pause
-            end tell
-            """
-    )!
+    @Binding var enabled: Bool
+    @Binding var duration: Double
 
-    private let fadeInScript = NSAppleScript(
-        source: """
-            tell application "Music"
-                play
-                repeat with i from 1 to 20
-                    set sound volume to (i * 5)
-                    delay 0.05
-                end repeat
-            end tell
-            """
-    )!
-
-    init() {
-        isPlayingScript.compileAndReturnError(nil)
-        fadeOutScript.compileAndReturnError(nil)
-        fadeInScript.compileAndReturnError(nil)
+    init(enabled: Binding<Bool>, duration: Binding<Double>) {
+        _enabled = enabled
+        _duration = duration
     }
 
     func isPlaying() -> Bool {
-        // With osascript in the terminal it's "playing" or "paused".
-        // Here for some reason it's either "kPSP" or "kPSp".
-        return exec(isPlayingScript) == "kPSP"
+        if !enabled { return false }
+        let state = musicApp.value(forKey: "playerState")! as! UInt32
+        return UnicodeScalar(state & 0xff) == UnicodeScalar("P")
     }
 
-    func fadeOut() { _ = exec(fadeOutScript) }
-    func fadeIn() { _ = exec(fadeInScript) }
+    func fadeOut() async throws {
+        try await slideVolume(to: 0)
+        musicApp.perform(NSSelectorFromString("pause"))
+    }
 
-    private func exec(_ script: NSAppleScript) -> String? {
-        var error: NSDictionary?
-        let output = script.executeAndReturnError(&error)
-        if let error {
-            print(error)
-            return nil
+    func fadeIn() async throws {
+        // "playpause" seems more reliable than "resume"
+        musicApp.perform(NSSelectorFromString("playpause"))
+        try await slideVolume(to: 100)
+    }
+
+    private func slideVolume(to: Int) async throws {
+        let n = 20
+        let from = 100 - to
+        let step = (to - from) / n
+        let sleep = .seconds(duration) / n
+        for i in 0...n {
+            musicApp.setValue(from + step * i, forKey: "soundVolume")
+            try await Task.sleep(for: sleep)
         }
-        return output.stringValue
     }
 }

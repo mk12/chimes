@@ -1,30 +1,49 @@
 import AVFoundation
+import SwiftUI
 
+@MainActor
 class Player: ObservableObject {
     @Published var isPlaying: Bool = false
 
-    private let engine = AVAudioEngine()
-    private let sampler = AVAudioUnitSampler()
-    private let sequencer: AVAudioSequencer
-    private let music = Music()
+    @Binding private var noteLength: Double
+    @Binding private var interNoteDelay: Double
+    @Binding private var interPhraseDelay: Double
+    @Binding private var preStrikeDelay: Double
+    @Binding private var strikeDuration: Double
+    @Binding private var interStrikeDelay: Double
+
+    private var engine: AVAudioEngine?
+    private let music: Music
     private var currentPlayId = 0
     private let soundFontUrl = Bundle.main.url(
         forResource: "Tubular Bells",
         withExtension: "sf2"
     )!
 
-    init() {
-        engine.attach(sampler)
-        engine.connect(sampler, to: engine.mainMixerNode, format: nil)
-        sequencer = AVAudioSequencer(audioEngine: engine)
+    init(
+        music: Music,
+        noteLength: Binding<Double>,
+        interNoteDelay: Binding<Double>,
+        interPhraseDelay: Binding<Double>,
+        preStrikeDelay: Binding<Double>,
+        strikeDuration: Binding<Double>,
+        interStrikeDelay: Binding<Double>,
+    ) {
+        self.music = music
+        _noteLength  = noteLength
+        _interNoteDelay  = interNoteDelay
+        _interPhraseDelay  = interPhraseDelay
+        _preStrikeDelay  = preStrikeDelay
+        _strikeDuration  = strikeDuration
+        _interStrikeDelay  = interStrikeDelay
     }
 
     func stop() {
+        guard isPlaying else { return }
         isPlaying = false
-        sequencer.stop()
-        sequencer.currentPositionInBeats = 0
-        engine.stop()
-        engine.reset()
+        engine?.stop()
+        engine?.reset()
+//        engine = nil
     }
 
     enum Chime {
@@ -34,22 +53,30 @@ class Player: ObservableObject {
         case FullHour(Int)
     }
 
-    func play(_ chime: Chime) {
+    func play(_ chime: Chime) async throws {
         switch chime {
-        case .FirstQuarter: play(phrases: [P1])
-        case .HalfHour: play(phrases: [P2, P3])
-        case .ThirdQuarter: play(phrases: [P4, P5, P1])
-        case .FullHour(let hour): play(phrases: [P2, P3, P4, P5], hour: hour)
+        case .FirstQuarter: try await play(phrases: [P1])
+        case .HalfHour: try await play(phrases: [P2, P3])
+        case .ThirdQuarter: try await play(phrases: [P4, P5, P1])
+        case .FullHour(let hour):
+            try await play(phrases: [P2, P3, P4, P5], hour: hour)
         }
     }
 
-    private func loadSountFont() throws {
+    private func load() throws -> (AVAudioEngine, AVAudioSequencer) {
+        let engine = AVAudioEngine()
+        let sampler = AVAudioUnitSampler()
+        engine.attach(sampler)
+        engine.connect(sampler, to: engine.mainMixerNode, format: nil)
+        let sequencer = AVAudioSequencer(audioEngine: engine)
         try sampler.loadSoundBankInstrument(
             at: soundFontUrl,
             program: 16,
             bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
             bankLSB: UInt8(kAUSampler_DefaultBankLSB)
         )
+        self.engine = engine
+        return (engine, sequencer)
     }
 
     /// MIDI-note helpers (E-major Westminster bells).
@@ -67,21 +94,18 @@ class Player: ObservableObject {
     private let P4: [Note] = [.GSharp4, .E4, .FSharp4, .B3]
     private let P5: [Note] = [.B3, .FSharp4, .GSharp4, .E4]
 
-    private func play(phrases: [[Note]], hour: Int? = nil) {
+    private func play(phrases: [[Note]], hour: Int? = nil) async throws {
         currentPlayId += 1
         let playId = currentPlayId
 
         let noteLength: MusicTimeStamp = 2.0
-        let interNoteDelay: MusicTimeStamp = 1.75
+        let interNoteDelay: MusicTimeStamp = 1.5
         let interPhraseDelay: MusicTimeStamp = 1.75
         let beforeStrikeDelay: MusicTimeStamp = 2.5
         let interStrikeDelay: MusicTimeStamp = 5.0
 
         stop()
-        while let track = sequencer.tracks.first {
-            sequencer.removeTrack(track)
-        }
-
+        let (engine, sequencer) = try load()
         let track = sequencer.createAndAppendTrack()
         var time: MusicTimeStamp = 0.0
         for phrase in phrases {
@@ -100,14 +124,15 @@ class Player: ObservableObject {
         }
 
         isPlaying = true
-        let fadeMusic = music.isPlaying()
-        if fadeMusic {
-            music.fadeOut()
+        engine.prepare()
+        sequencer.prepareToPlay()
+        let fade = music.isPlaying()
+        if fade {
+            try await music.fadeOut()
         }
 
         do {
             try engine.start()
-            try loadSountFont()
             try sequencer.start()
         } catch {
             print("Failed to play: \(error)")
@@ -115,22 +140,15 @@ class Player: ObservableObject {
             return
         }
 
-        let duration = sequencer.seconds(forBeats: time)
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-            [weak self] in
-            guard let self else { return }
-            guard self.currentPlayId == playId else { return }
-            isPlaying = false
-            if fadeMusic { music.fadeIn() }
-        }
-        let extraSlack = 2.0
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration + extraSlack)
-        {
-            [weak self] in
-            guard let self else { return }
-            guard self.currentPlayId == playId else { return }
-            self.stop()
-        }
+        try await Task.sleep(for: .seconds(sequencer.seconds(forBeats: time)))
+        guard self.currentPlayId == playId else { return }
+        isPlaying = false
+        if fade { try await music.fadeIn() }
+
+        try await Task.sleep(for: .seconds(2.0))
+        guard self.currentPlayId == playId else { return }
+        sequencer.stop()
+        self.stop()
     }
 
     private func makeEvent(_ note: Note, _ length: MusicTimeStamp)

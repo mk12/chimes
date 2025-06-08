@@ -4,9 +4,7 @@
 <dict>
 	<key>INIntentsSupported</key>
 	<array>
-		<string>AppFocusFilter</string>
+		<string>FocusFilter</string>
 	</array>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>To pause music when playing chimes</string>
 </dict>
 </plist>

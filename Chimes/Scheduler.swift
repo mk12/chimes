@@ -2,9 +2,21 @@ import AppIntents
 import AppKit
 import Foundation
 
+@MainActor
 class Scheduler {
     private let player: Player
     private var currentWorkItem: DispatchWorkItem?
+
+    public var enabled = false {
+        didSet {
+            if enabled {
+                scheduleNextTick()
+            } else {
+                currentWorkItem?.cancel()
+                player.stop()
+            }
+        }
+    }
 
     init(player: Player) {
         self.player = player
@@ -31,14 +43,8 @@ class Scheduler {
         )
     }
 
-    func start() { scheduleNextTick() }
-    func stop() {
-        currentWorkItem?.cancel()
-        player.stop()
-    }
-
-    @objc private func onSleep() { stop() }
-    @objc private func onWake() { start() }
+    @objc private func onWake() { if enabled { scheduleNextTick() } }
+    @objc private func onSleep() { if enabled { currentWorkItem?.cancel() } }
 
     private func scheduleNextTick() {
         let now = Date()
@@ -87,7 +93,7 @@ class Scheduler {
 
         guard let chime else { return }
         guard shouldPlay(chime: chime) else { return }
-        player.play(chime)
+        Task.detached { [self] in try await player.play(chime) }
     }
 
     private func shouldPlay(chime: Player.Chime) -> Bool {

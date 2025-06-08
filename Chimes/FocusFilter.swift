@@ -1,6 +1,6 @@
 import AppIntents
 
-struct FocusState {
+class FocusState {
     static let shared = FocusState()
 
     var firstQuarter = true
@@ -9,7 +9,7 @@ struct FocusState {
     var fullHour = true
 }
 
-struct AppFocusFilter: SetFocusFilterIntent {
+struct FocusFilter: SetFocusFilterIntent {
     static var title: LocalizedStringResource = "Filter Chimes"
     static var description: LocalizedStringResource =
         "Filter chimes in this focus mode."
@@ -37,7 +37,7 @@ struct AppFocusFilter: SetFocusFilterIntent {
     }
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: AppFocusFilter.title, subtitle: subtitle())
+        DisplayRepresentation(title: FocusFilter.title, subtitle: subtitle())
     }
 
     func perform() async throws -> some IntentResult {
