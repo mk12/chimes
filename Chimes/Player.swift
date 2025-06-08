@@ -12,7 +12,10 @@ class Player: ObservableObject {
     @Binding private var strikeDuration: Double
     @Binding private var interStrikeDelay: Double
 
-    private var engine: AVAudioEngine?
+    private let engine = AVAudioEngine()
+    private let sampler = AVAudioUnitSampler()
+    private var sequencer: AVAudioSequencer
+    private var track: AVMusicTrack
     private let music: Music
     private var currentPlayId = 0
     private let soundFontUrl = Bundle.main.url(
@@ -30,20 +33,31 @@ class Player: ObservableObject {
         interStrikeDelay: Binding<Double>,
     ) {
         self.music = music
-        _noteLength  = noteLength
-        _interNoteDelay  = interNoteDelay
-        _interPhraseDelay  = interPhraseDelay
-        _preStrikeDelay  = preStrikeDelay
-        _strikeDuration  = strikeDuration
-        _interStrikeDelay  = interStrikeDelay
+        _noteLength = noteLength
+        _interNoteDelay = interNoteDelay
+        _interPhraseDelay = interPhraseDelay
+        _preStrikeDelay = preStrikeDelay
+        _strikeDuration = strikeDuration
+        _interStrikeDelay = interStrikeDelay
+        engine.attach(sampler)
+        engine.connect(sampler, to: engine.mainMixerNode, format: nil)
+        sequencer = AVAudioSequencer(audioEngine: engine)
+        track = sequencer.createAndAppendTrack()
     }
 
     func stop() {
-        guard isPlaying else { return }
+        print("stop")
+//        guard isPlaying else { return }
+        print("stop - real")
         isPlaying = false
-        engine?.stop()
-        engine?.reset()
-//        engine = nil
+        sequencer.stop()
+        sequencer.currentPositionInBeats = 0
+        print("stop - track len = \(track.lengthInBeats)")
+        if track.lengthInBeats > 0 {
+            track.clearEvents(in: AVBeatRange(start: 0, length: track.lengthInBeats))
+        }
+        engine.stop()
+        engine.reset()
     }
 
     enum Chime {
@@ -63,20 +77,13 @@ class Player: ObservableObject {
         }
     }
 
-    private func load() throws -> (AVAudioEngine, AVAudioSequencer) {
-        let engine = AVAudioEngine()
-        let sampler = AVAudioUnitSampler()
-        engine.attach(sampler)
-        engine.connect(sampler, to: engine.mainMixerNode, format: nil)
-        let sequencer = AVAudioSequencer(audioEngine: engine)
+    private func loadInstrument() throws {
         try sampler.loadSoundBankInstrument(
             at: soundFontUrl,
             program: 16,
             bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
             bankLSB: UInt8(kAUSampler_DefaultBankLSB)
         )
-        self.engine = engine
-        return (engine, sequencer)
     }
 
     /// MIDI-note helpers (E-major Westminster bells).
@@ -97,6 +104,7 @@ class Player: ObservableObject {
     private func play(phrases: [[Note]], hour: Int? = nil) async throws {
         currentPlayId += 1
         let playId = currentPlayId
+        print("play \(playId) - enter")
 
         let noteLength: MusicTimeStamp = 2.0
         let interNoteDelay: MusicTimeStamp = 1.5
@@ -104,13 +112,31 @@ class Player: ObservableObject {
         let beforeStrikeDelay: MusicTimeStamp = 2.5
         let interStrikeDelay: MusicTimeStamp = 5.0
 
+        print("play \(playId) - stopping")
+        try await Task.sleep(for: .seconds(0.2))
         stop()
-        let (engine, sequencer) = try load()
-        let track = sequencer.createAndAppendTrack()
+        print("play \(playId) - stopped")
+        try await Task.sleep(for: .seconds(0.2))
+        print("play \(playId) - loading instrument")
+        try loadInstrument()
+        try await Task.sleep(for: .seconds(0.2))
+        print("play \(playId) - loaded instrument")
+        try await Task.sleep(for: .seconds(0.2))
+        print("play \(playId) - accessing track")
+        let track = sequencer.tracks.first!
+        try await Task.sleep(for: .seconds(0.2))
+        print("play \(playId) - printing events")
+        sequencer.currentPositionInBeats = 0.0
+        track.enumerateEvents(in: AVBeatRange(start: 0, length: 100), using: {
+            print("\($0), \($1), \($2)")
+        })
+        try await Task.sleep(for: .seconds(0.2))
         var time: MusicTimeStamp = 0.0
         for phrase in phrases {
             for note in phrase {
+                print("play \(playId) - adding note \(note)")
                 track.addEvent(makeEvent(note, noteLength), at: time)
+                try await Task.sleep(for: .seconds(0.2))
                 time += interNoteDelay
             }
             time += interPhraseDelay
@@ -122,17 +148,32 @@ class Player: ObservableObject {
                 time += interStrikeDelay
             }
         }
+        print("play \(playId) - done adding events")
+        try await Task.sleep(for: .seconds(0.2))
 
         isPlaying = true
+        print("play \(playId) - preparing engine")
         engine.prepare()
+        try await Task.sleep(for: .seconds(0.2))
+        print("play \(playId) - preparing sequencer")
         sequencer.prepareToPlay()
+        try await Task.sleep(for: .seconds(0.2))
         let fade = music.isPlaying()
         if fade {
+            print("play \(playId) - fading")
             try await music.fadeOut()
         }
-
+        
+        print("play \(playId) - printing events")
+        sequencer.currentPositionInBeats = 0.0
+        track.enumerateEvents(in: AVBeatRange(start: 0, length: 100), using: {
+            print("\($0), \($1), \($2)")
+        })
+        try await Task.sleep(for: .seconds(0.2))
         do {
+            print("play \(playId) - starting engine")
             try engine.start()
+            print("play \(playId) - starting sequencer")
             try sequencer.start()
         } catch {
             print("Failed to play: \(error)")
@@ -140,15 +181,21 @@ class Player: ObservableObject {
             return
         }
 
+        print("play \(playId) - sleeping")
         try await Task.sleep(for: .seconds(sequencer.seconds(forBeats: time)))
+        print("play \(playId) - awoke")
         guard self.currentPlayId == playId else { return }
         isPlaying = false
         if fade { try await music.fadeIn() }
 
+        print("play \(playId) - sleeping again")
         try await Task.sleep(for: .seconds(2.0))
+
+        print("play \(playId) - awoke")
         guard self.currentPlayId == playId else { return }
-        sequencer.stop()
-        self.stop()
+
+        print("play \(playId) - stopping")
+        stop()
     }
 
     private func makeEvent(_ note: Note, _ length: MusicTimeStamp)
