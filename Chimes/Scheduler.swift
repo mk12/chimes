@@ -10,7 +10,7 @@ class Scheduler {
     public var enabled = false {
         didSet {
             if enabled {
-                scheduleNextTick()
+                scheduleNextTick(after: Date())
             } else {
                 currentWorkItem?.cancel()
                 player.stop()
@@ -43,26 +43,33 @@ class Scheduler {
         )
     }
 
-    @objc private func onWake() { if enabled { scheduleNextTick() } }
+    @objc private func onWake() {
+        if enabled { scheduleNextTick(after: Date()) }
+    }
     @objc private func onSleep() { if enabled { currentWorkItem?.cancel() } }
 
-    private func scheduleNextTick() {
-        let now = Date()
+    private func scheduleNextTick(after: Date) {
         let calendar = Calendar.current
         let quarterMinutes = [0, 15, 30, 45]
         let nextDates = quarterMinutes.map { minute -> Date in
             calendar.nextDate(
-                after: now,
+                after: after,
                 matching: DateComponents(minute: minute),
                 matchingPolicy: .nextTime
             )!
         }
-        let nextQuarter = nextDates.min()!
-        let delay = nextQuarter.timeIntervalSinceNow
+        let next = nextDates.min()!
+        let chime = getChime(date: next)!
+        let ahead = player.startAhead(chime: chime)
+        let delay = (next - ahead).timeIntervalSinceNow
+        // This can happen if scheduling *right* before,
+        // without enough extra time for fading out music etc.
+        if delay < 0 { return }
 
         let workItem = DispatchWorkItem { [weak self] in
-            self?.tick()
-            self?.scheduleNextTick()  // schedule the *next* quarter
+            let date = Date().addingTimeInterval(ahead)
+            self?.tick(date: date)
+            self?.scheduleNextTick(after: date)
         }
         currentWorkItem?.cancel()
         currentWorkItem = workItem
@@ -72,28 +79,26 @@ class Scheduler {
         )
     }
 
-    private func tick() {
-        // Add 1 second in case we fire too early.
-        let date = Date().addingTimeInterval(1.0)
-        let minute = Calendar.current.component(.minute, from: date)
-        let hour = Calendar.current.component(.hour, from: date)
-        let chime: Player.Chime? =
-            switch minute {
-            case 0:
-                .FullHour(hour % 12 == 0 ? 12 : hour % 12)
-            case 15:
-                .FirstQuarter
-            case 30:
-                .HalfHour
-            case 45:
-                .ThirdQuarter
-            default:
-                nil
-            }
-
+    private func tick(date: Date) {
+        let chime = getChime(date: date)
         guard let chime else { return }
         guard shouldPlay(chime: chime) else { return }
-        Task.detached { [self] in try await player.play(chime) }
+        Task.detached { [weak self] in
+            guard let self else { return }
+            try await player.play(chime)
+        }
+    }
+
+    private func getChime(date: Date) -> Player.Chime? {
+        let minute = Calendar.current.component(.minute, from: date)
+        let hour = Calendar.current.component(.hour, from: date)
+        return switch minute {
+        case 0: .FullHour(hour % 12 == 0 ? 12 : hour % 12)
+        case 15: .FirstQuarter
+        case 30: .HalfHour
+        case 45: .ThirdQuarter
+        default: nil
+        }
     }
 
     private func shouldPlay(chime: Player.Chime) -> Bool {
@@ -108,7 +113,6 @@ class Scheduler {
         case .FullHour:
             if !state.fullHour { return false }
         }
-
         return true
     }
 }

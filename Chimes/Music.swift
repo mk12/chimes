@@ -37,7 +37,7 @@ class Music {
         let sleep = .seconds(duration) / n
         for i in 0...n {
             musicApp.setValue(from + step * i, forKey: "soundVolume")
-            try await Task.sleep(for: sleep)
+            try await Task.sleep(for: sleep, tolerance: .zero, clock: .continuous)
         }
     }
 }

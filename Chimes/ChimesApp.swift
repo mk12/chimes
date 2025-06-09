@@ -8,7 +8,8 @@ struct ChimesApp: App {
     @AppStorage("fadeOutMusicDuration") private var fadeOutMusicDuration:
         Double = 1.0
 
-    @AppStorage("noteLength") private var noteLength = 1.0
+    @AppStorage("volume") private var volume = 1.0
+    @AppStorage("noteDuration") private var noteDuration = 1.0
     @AppStorage("interNoteDelay") private var interNoteDelay = 0.75
     @AppStorage("interPhraseDelay") private var interPhraseDelay = 1.6
     @AppStorage("preStrikeDelay") private var preStrikeDelay = 2.1
@@ -18,6 +19,8 @@ struct ChimesApp: App {
     @ObservedObject private var player: Player
     private let scheduler: Scheduler
 
+    @Environment(\.openSettings) private var openSettings
+
     init() {
         let music = Music(
             enabled: _fadeOutMusic.projectedValue,
@@ -25,7 +28,8 @@ struct ChimesApp: App {
         )
         let player = Player(
             music: music,
-            noteLength: _noteLength.projectedValue,
+            volume: _volume.projectedValue,
+            noteDuration: _noteDuration.projectedValue,
             interNoteDelay: _interNoteDelay.projectedValue,
             interPhraseDelay: _interPhraseDelay.projectedValue,
             preStrikeDelay: _preStrikeDelay.projectedValue,
@@ -38,11 +42,11 @@ struct ChimesApp: App {
     }
 
     private func image() -> String {
-        if !enabled {
-            return "bell.slash"
-        }
         if player.isPlaying {
             return "bell.fill"
+        }
+        if !enabled {
+            return "bell.slash"
         }
         return "bell"
     }
@@ -69,7 +73,12 @@ struct ChimesApp: App {
                 }
             }
             Divider()
-            SettingsLink()
+            Button("Settings...") {
+                openSettings()
+                DispatchQueue.main.async {
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
             Divider()
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
@@ -82,9 +91,10 @@ struct ChimesApp: App {
         Settings {
             SettingsView(
                 enabled: $enabled,
+                volume: $volume,
                 fadeOutMusic: $fadeOutMusic,
                 fadeOutMusicDuration: $fadeOutMusicDuration,
-                noteLength: $noteLength,
+                noteDuration: $noteDuration,
                 interNoteDelay: $interNoteDelay,
                 interPhraseDelay: $interPhraseDelay,
                 preStrikeDelay: $preStrikeDelay,

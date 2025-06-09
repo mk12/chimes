@@ -41,7 +41,7 @@ struct FocusFilter: SetFocusFilterIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        var state = FocusState.shared
+        let state = FocusState.shared
         state.firstQuarter = firstQuarter
         state.halfHour = halfHour
         state.thirdQuarter = thirdQuarter
