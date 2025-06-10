@@ -14,8 +14,22 @@ class Player: ObservableObject {
     @Binding private var preStrikeDelay: Double
     @Binding private var strikeDuration: Double
     @Binding private var interStrikeDelay: Double
+    @Binding private var timingAdjustment: Double
 
     private let music: Music
+
+    var instrument: String {
+        didSet {
+            prepareInstrument()
+            if engine.isRunning {
+                needToLoadNewInstrument = true
+            } else {
+                try! loadInstrument()
+            }
+        }
+    }
+
+    private var needToLoadNewInstrument = false
 
     private let engine = AVAudioEngine()
     private let sampler = AVAudioUnitSampler()
@@ -23,15 +37,12 @@ class Player: ObservableObject {
     private var track: AVMusicTrack
     private let bps: Double
     private var currentPlayId = 0
-    private let soundFontUrl = Bundle.main.url(
-        forResource: "Tubular Bells",
-        withExtension: "sf2"
-    )!
-
-    private let extraFadeTime = 2.0
+    private var soundFontUrl: URL!
+    private var soundFontProgram: UInt8!
 
     init(
         music: Music,
+        instrument: String,
         volume: Binding<Double>,
         noteDuration: Binding<Double>,
         interNoteDelay: Binding<Double>,
@@ -39,8 +50,10 @@ class Player: ObservableObject {
         preStrikeDelay: Binding<Double>,
         strikeDuration: Binding<Double>,
         interStrikeDelay: Binding<Double>,
+        timingAdjustment: Binding<Double>,
     ) {
         self.music = music
+        self.instrument = instrument
         _volume = volume
         _noteDuration = noteDuration
         _interNoteDelay = interNoteDelay
@@ -48,24 +61,40 @@ class Player: ObservableObject {
         _preStrikeDelay = preStrikeDelay
         _strikeDuration = strikeDuration
         _interStrikeDelay = interStrikeDelay
+        _timingAdjustment = timingAdjustment
         engine.attach(sampler)
         engine.connect(sampler, to: engine.mainMixerNode, format: nil)
         sequencer = AVAudioSequencer(audioEngine: engine)
         track = sequencer.createAndAppendTrack()
         bps = sequencer.beats(forSeconds: 1)
+        prepareInstrument()
+        try! loadInstrument()
+    }
+
+    private func prepareInstrument() {
+        soundFontUrl = Bundle.main.url(
+            forResource: instrument,
+            withExtension: "sf2"
+        )!
+        soundFontProgram =
+            switch instrument {
+            case "Tubular Bells": 16
+            case "Lo-Fi Bells": 98
+            case "New Age Bells": 88
+            default: 0
+            }
     }
 
     private func loadInstrument() throws {
         try sampler.loadSoundBankInstrument(
             at: soundFontUrl,
-            program: 16,
+            program: soundFontProgram,
             bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
             bankLSB: UInt8(kAUSampler_DefaultBankLSB)
         )
     }
 
     func stop() {
-        guard isPlaying else { return }
         isPlaying = false
         currentPlayId += 1
         reset()
@@ -83,6 +112,12 @@ class Player: ObservableObject {
         }
         engine.stop()
         engine.reset()
+        if needToLoadNewInstrument {
+            // Hopefully this will cache the instrument so that
+            // loading it is fast the next time.
+            try! loadInstrument()
+            needToLoadNewInstrument = false
+        }
     }
 
     enum Chime {
@@ -106,7 +141,7 @@ class Player: ObservableObject {
     private let P4: [Note] = [.GSharp4, .E4, .FSharp4, .B3]
     private let P5: [Note] = [.B3, .FSharp4, .GSharp4, .E4]
 
-    func play(_ chime: Chime) async throws {
+    func play(_ chime: Chime, scheduled: Bool = false) async throws {
         currentPlayId += 1
         let playId = currentPlayId
         reset()
@@ -119,9 +154,9 @@ class Player: ObservableObject {
         let fade = music.isPlaying()
         if fade {
             try await music.fadeOut()
-        } else {
+        } else if scheduled {
             try await Task.sleep(
-                for: .seconds(music.duration + extraFadeTime),
+                for: .seconds(music.duration),
                 tolerance: .zero,
                 clock: .continuous
             )
@@ -159,7 +194,7 @@ class Player: ObservableObject {
     }
 
     func startAhead(chime: Chime) -> TimeInterval {
-        let base = music.duration + extraFadeTime
+        let base = timingAdjustment + music.duration
         switch chime {
         case .FirstQuarter, .HalfHour, .ThirdQuarter:
             return base

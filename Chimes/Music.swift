@@ -5,12 +5,19 @@ import SwiftUI
 class Music {
     private let musicApp = SBApplication(bundleIdentifier: "com.apple.Music")!
 
-    @Binding var enabled: Bool
+    @Binding private var enabled: Bool
+    @Binding private var adjustment: Double
+
     @Binding var duration: Double
 
-    init(enabled: Binding<Bool>, duration: Binding<Double>) {
+    init(
+        enabled: Binding<Bool>,
+        duration: Binding<Double>,
+        adjustment: Binding<Double>,
+    ) {
         _enabled = enabled
         _duration = duration
+        _adjustment = adjustment
     }
 
     func isPlaying() -> Bool {
@@ -34,10 +41,16 @@ class Music {
         let n = 20
         let from = 100 - to
         let step = (to - from) / n
-        let sleep = .seconds(duration) / n
+        // Subtract the adjustment to account for other CPU activity
+        // besides the sleeps contributing to duration.
+        let sleep = .seconds(duration - adjustment) / n
         for i in 0...n {
             musicApp.setValue(from + step * i, forKey: "soundVolume")
-            try await Task.sleep(for: sleep, tolerance: .zero, clock: .continuous)
+            try await Task.sleep(
+                for: sleep,
+                tolerance: .zero,
+                clock: .continuous
+            )
         }
     }
 }

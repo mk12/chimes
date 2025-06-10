@@ -46,7 +46,10 @@ class Scheduler {
     @objc private func onWake() {
         if enabled { scheduleNextTick(after: Date()) }
     }
-    @objc private func onSleep() { if enabled { currentWorkItem?.cancel() } }
+
+    @objc private func onSleep() {
+        if enabled { currentWorkItem?.cancel() }
+    }
 
     private func scheduleNextTick(after: Date) {
         let calendar = Calendar.current
@@ -54,38 +57,57 @@ class Scheduler {
         let nextDates = quarterMinutes.map { minute -> Date in
             calendar.nextDate(
                 after: after,
-                matching: DateComponents(minute: minute),
+                matching: DateComponents(minute: minute, second: 0),
                 matchingPolicy: .nextTime
             )!
         }
-        let next = nextDates.min()!
-        let chime = getChime(date: next)!
+        scheduleNextTick(for: nextDates.min()!)
+    }
+
+    #if DEBUG
+        func debugSchedule(chime: Player.Chime) {
+            // Round to a whole second, and add 5 seconds for good measure.
+            let timestamp = ceil(Date().timeIntervalSinceReferenceDate) + 5
+            let start = Date(timeIntervalSinceReferenceDate: timestamp)
+            let ahead = player.startAhead(chime: chime)
+            let date = start + ahead
+            print("scheduling \(chime) for \(start) - \(date)")
+            scheduleNextTick(for: date, fixedChime: chime)
+        }
+    #endif
+
+    private func scheduleNextTick(
+        for date: Date,
+        fixedChime: Player.Chime? = nil
+    ) {
+        let chime = fixedChime ?? getChime(date: date)!
         let ahead = player.startAhead(chime: chime)
-        let delay = (next - ahead).timeIntervalSinceNow
+        let delay = (date - ahead).timeIntervalSinceNow
         // This can happen if scheduling *right* before,
         // without enough extra time for fading out music etc.
         if delay < 0 { return }
-
-        let workItem = DispatchWorkItem { [weak self] in
-            let date = Date().addingTimeInterval(ahead)
-            self?.tick(date: date)
+        let deadline = DispatchWallTime.now() + delay
+        let workItem = DispatchWorkItem(qos: .userInteractive) { [weak self] in
+            // Add 30s so getChime will work if we are within 1 minute of the right time.
+            let date = Date().addingTimeInterval(ahead + 30)
+            self?.tick(date: date, fixedChime: fixedChime)
             self?.scheduleNextTick(after: date)
         }
         currentWorkItem?.cancel()
         currentWorkItem = workItem
         DispatchQueue.main.asyncAfter(
-            deadline: .now() + delay,
-            execute: workItem
+            wallDeadline: deadline,
+            execute: workItem,
         )
     }
 
-    private func tick(date: Date) {
-        let chime = getChime(date: date)
+    private func tick(date: Date, fixedChime: Player.Chime?) {
+        let chime = fixedChime ?? getChime(date: date)
         guard let chime else { return }
         guard shouldPlay(chime: chime) else { return }
         Task.detached { [weak self] in
             guard let self else { return }
-            try await player.play(chime)
+            try await player.play(chime, scheduled: true)
         }
     }
 
@@ -97,6 +119,7 @@ class Scheduler {
         case 15: .FirstQuarter
         case 30: .HalfHour
         case 45: .ThirdQuarter
+        case 26: .FirstQuarter
         default: nil
         }
     }
