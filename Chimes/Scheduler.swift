@@ -101,7 +101,7 @@ class Scheduler {
         let ahead = player.startAhead(chime: chime)
         let dateStr = Self.formatter.string(from: date)
         let aheadStr = String(format: "%.3f", ahead)
-        Self.logger.debug("scheduling \(dateStr) (\(aheadStr)s ahead)")
+        Self.logger.debug("scheduling \(dateStr) (minus \(aheadStr)s)")
         let target = date - ahead
         let delay = target.timeIntervalSinceNow
         // This can happen if scheduling *right* before,
