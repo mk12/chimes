@@ -6,11 +6,11 @@ struct SettingsView<InstrumentPicker: View>: View {
     @Binding private var fadeMusic: Bool
 
     @Binding private var noteDuration: Double
-    @Binding private var interNoteDelay: Double
-    @Binding private var interPhraseDelay: Double
+    @Binding private var noteInterval: Double
+    @Binding private var phraseInterval: Double
     @Binding private var preStrikeDelay: Double
     @Binding private var strikeDuration: Double
-    @Binding private var interStrikeDelay: Double
+    @Binding private var strikeInterval: Double
 
     @Binding private var fadeMusicDuration: Double
     @Binding private var timingAdjustment: Double
@@ -26,11 +26,11 @@ struct SettingsView<InstrumentPicker: View>: View {
         volume: Binding<Double>,
         fadeMusic: Binding<Bool>,
         noteDuration: Binding<Double>,
-        interNoteDelay: Binding<Double>,
-        interPhraseDelay: Binding<Double>,
+        noteInterval: Binding<Double>,
+        phraseInterval: Binding<Double>,
         preStrikeDelay: Binding<Double>,
         strikeDuration: Binding<Double>,
-        interStrikeDelay: Binding<Double>,
+        strikeInterval: Binding<Double>,
         fadeMusicDuration: Binding<Double>,
         timingAdjustment: Binding<Double>,
         fadeMusicAdjustment: Binding<Double>,
@@ -41,11 +41,11 @@ struct SettingsView<InstrumentPicker: View>: View {
         _volume = volume
         _fadeMusic = fadeMusic
         _noteDuration = noteDuration
-        _interNoteDelay = interNoteDelay
-        _interPhraseDelay = interPhraseDelay
+        _noteInterval = noteInterval
+        _phraseInterval = phraseInterval
         _preStrikeDelay = preStrikeDelay
         _strikeDuration = strikeDuration
-        _interStrikeDelay = interStrikeDelay
+        _strikeInterval = strikeInterval
         _fadeMusicDuration = fadeMusicDuration
         _timingAdjustment = timingAdjustment
         _fadeMusicAdjustment = fadeMusicAdjustment
@@ -79,12 +79,12 @@ struct SettingsView<InstrumentPicker: View>: View {
                 Slider(value: $volume, in: 0...1)
             }
             Divider()
-            durationField("Note Length", value: $noteDuration)
-            durationField("Note Delay", value: $interNoteDelay)
-            durationField("Phrase Delay", value: $interPhraseDelay)
-            durationField("Pre Strike Delay", value: $preStrikeDelay)
-            durationField("Strike Length", value: $strikeDuration)
-            durationField("Strike Delay", value: $interStrikeDelay)
+            durationField("Note Duration", value: $noteDuration)
+            durationField("Note Interval", value: $noteInterval)
+            durationField("Phrase Interval", value: $phraseInterval)
+            durationField("First Strike Delay", value: $preStrikeDelay)
+            durationField("Strike Duration", value: $strikeDuration)
+            durationField("Strike Interval", value: $strikeInterval)
             Divider()
             durationField("Timing Adjustment", value: $timingAdjustment)
             durationField("Fade Duration", value: $fadeMusicDuration)

@@ -1,19 +1,25 @@
 import AVFoundation
 import SwiftUI
+import os
 
 @MainActor
 class Player: ObservableObject {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Player.self)
+    )
+
     // Published so we can change the menu bar icon while playing.
     @Published var isPlaying: Bool = false
 
     // Parameters controlling chimes MIDI playing.
     @Binding private var volume: Double
     @Binding private var noteDuration: Double
-    @Binding private var interNoteDelay: Double
-    @Binding private var interPhraseDelay: Double
+    @Binding private var noteInterval: Double
+    @Binding private var phraseInterval: Double
     @Binding private var preStrikeDelay: Double
     @Binding private var strikeDuration: Double
-    @Binding private var interStrikeDelay: Double
+    @Binding private var strikeInterval: Double
     @Binding private var timingAdjustment: Double
 
     private let music: Music
@@ -45,22 +51,22 @@ class Player: ObservableObject {
         instrument: String,
         volume: Binding<Double>,
         noteDuration: Binding<Double>,
-        interNoteDelay: Binding<Double>,
-        interPhraseDelay: Binding<Double>,
+        noteInterval: Binding<Double>,
+        phraseInterval: Binding<Double>,
         preStrikeDelay: Binding<Double>,
         strikeDuration: Binding<Double>,
-        interStrikeDelay: Binding<Double>,
+        strikeInterval: Binding<Double>,
         timingAdjustment: Binding<Double>,
     ) {
         self.music = music
         self.instrument = instrument
         _volume = volume
         _noteDuration = noteDuration
-        _interNoteDelay = interNoteDelay
-        _interPhraseDelay = interPhraseDelay
+        _noteInterval = noteInterval
+        _phraseInterval = phraseInterval
         _preStrikeDelay = preStrikeDelay
         _strikeDuration = strikeDuration
-        _interStrikeDelay = interStrikeDelay
+        _strikeInterval = strikeInterval
         _timingAdjustment = timingAdjustment
         engine.attach(sampler)
         engine.connect(sampler, to: engine.mainMixerNode, format: nil)
@@ -101,10 +107,12 @@ class Player: ObservableObject {
     }
 
     private func reset() {
+        Self.logger.debug("resetting")
         sequencer.stop()
         sequencer.currentPositionInBeats = 0
         if track.lengthInBeats > 0 {
-            // Add one just in case, not sure if it's inclusive.
+            // Add one just in case, not sure if it's inclusive
+            // (or how that would even make sense with floating point).
             let length = track.lengthInBeats + 1
             track.clearEvents(
                 in: AVBeatRange(start: 0, length: length)
@@ -142,6 +150,9 @@ class Player: ObservableObject {
     private let P5: [Note] = [.B3, .FSharp4, .GSharp4, .E4]
 
     func play(_ chime: Chime, scheduled: Bool = false) async throws {
+        Self.logger.debug("playing chime \(String(describing: chime))")
+        // Don't let schedule override manual play.
+        if scheduled && isPlaying { return }
         currentPlayId += 1
         let playId = currentPlayId
         reset()
@@ -167,7 +178,7 @@ class Player: ObservableObject {
             try engine.start()
             try sequencer.start()
         } catch {
-            print("Failed to play: \(error)")
+            Self.logger.error("failed to play: \(error)")
             reset()
             return
         }
@@ -199,7 +210,7 @@ class Player: ObservableObject {
         case .FirstQuarter, .HalfHour, .ThirdQuarter:
             return base
         case .FullHour:
-            return base + self.interNoteDelay * 12 + self.interPhraseDelay * 3
+            return base + self.noteInterval * 12 + self.phraseInterval * 3
                 + self.preStrikeDelay
         }
     }
@@ -211,11 +222,11 @@ class Player: ObservableObject {
         // In beats instead of seconds, and cumulative so that
         // we can just add delays at the ends of loops unconditionally.
         let noteDur = self.noteDuration * bps
-        let interNote = self.interNoteDelay * bps
-        let interPhrase = self.interPhraseDelay * bps - interNote
+        let interNote = self.noteInterval * bps
+        let interPhrase = self.phraseInterval * bps - interNote
         let preStrike = self.preStrikeDelay * bps - interNote - interPhrase
         let strikeDur = self.strikeDuration * bps
-        let interStrike = self.interStrikeDelay * bps
+        let interStrike = self.strikeInterval * bps
 
         let phrases =
             switch chime {

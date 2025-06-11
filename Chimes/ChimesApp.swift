@@ -5,15 +5,19 @@ struct ChimesApp: App {
     @AppStorage("enabled") private var enabled: Bool = true
     @AppStorage("fadeMusic") private var fadeMusic: Bool = true
 
-    @AppStorage("instrument") private var instrument: String = "Tubular Bells"
+    @AppStorage("instrument") private var instrument: String = "Bronze Bells"
 
     @AppStorage("volume") private var volume = 1.0
     @AppStorage("noteDuration") private var noteDuration = 1.0
-    @AppStorage("interNoteDelay") private var interNoteDelay = 0.75
-    @AppStorage("interPhraseDelay") private var interPhraseDelay = 1.6
+    @AppStorage("noteInterval") private var noteInterval = 0.75
+    @AppStorage("phraseInterval") private var phraseInterval = 1.6
     @AppStorage("preStrikeDelay") private var preStrikeDelay = 2.1
-    @AppStorage("strikeDuration") private var strikeDuration = 3.0
-    @AppStorage("interStrikeDelay") private var interStrikeDelay = 2.5
+    // It's important that strikeDuration <= strikeInterval, otherwise for some
+    // instruments all but the first strike become very short and quiet because
+    // it reuses the same note (not an issue for the other chimes because they
+    // never have the same note twice in a row).
+    @AppStorage("strikeDuration") private var strikeDuration = 2.5
+    @AppStorage("strikeInterval") private var strikeInterval = 2.5
     @AppStorage("fadeMusicDuration") private var fadeMusicDuration = 1.0
     @AppStorage("timingAdjustment") private var timingAdjustment = 0.3
     @AppStorage("fadeMusicAdjustment") private var fadeMusicAdjustment = 0.3
@@ -24,8 +28,8 @@ struct ChimesApp: App {
     @Environment(\.openSettings) private var openSettings
 
     private let instruments = [
-        "Tubular Bells",
         "Bronze Bells",
+        "Tubular Bells",
         "American Bells",
         "Lo-Fi Bells",
         "New Age Bells",
@@ -45,11 +49,11 @@ struct ChimesApp: App {
             instrument: _instrument.wrappedValue,
             volume: _volume.projectedValue,
             noteDuration: _noteDuration.projectedValue,
-            interNoteDelay: _interNoteDelay.projectedValue,
-            interPhraseDelay: _interPhraseDelay.projectedValue,
+            noteInterval: _noteInterval.projectedValue,
+            phraseInterval: _phraseInterval.projectedValue,
             preStrikeDelay: _preStrikeDelay.projectedValue,
             strikeDuration: _strikeDuration.projectedValue,
-            interStrikeDelay: _interStrikeDelay.projectedValue,
+            strikeInterval: _strikeInterval.projectedValue,
             timingAdjustment: _timingAdjustment.projectedValue,
         )
         self.player = player
@@ -119,11 +123,11 @@ struct ChimesApp: App {
                 volume: $volume,
                 fadeMusic: $fadeMusic,
                 noteDuration: $noteDuration,
-                interNoteDelay: $interNoteDelay,
-                interPhraseDelay: $interPhraseDelay,
+                noteInterval: $noteInterval,
+                phraseInterval: $phraseInterval,
                 preStrikeDelay: $preStrikeDelay,
                 strikeDuration: $strikeDuration,
-                interStrikeDelay: $interStrikeDelay,
+                strikeInterval: $strikeInterval,
                 fadeMusicDuration: $fadeMusicDuration,
                 timingAdjustment: $timingAdjustment,
                 fadeMusicAdjustment: $fadeMusicAdjustment,

@@ -1,8 +1,14 @@
 import Foundation
 import ScriptingBridge
 import SwiftUI
+import os
 
 class Music {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Music.self)
+    )
+
     private let musicApp = SBApplication(bundleIdentifier: "com.apple.Music")!
 
     @Binding private var enabled: Bool
@@ -27,11 +33,13 @@ class Music {
     }
 
     func fadeOut() async throws {
+        Self.logger.debug("fading out music")
         try await slideVolume(to: 0)
         musicApp.perform(NSSelectorFromString("pause"))
     }
 
     func fadeIn() async throws {
+        Self.logger.debug("fading in music")
         // "playpause" seems more reliable than "resume"
         musicApp.perform(NSSelectorFromString("playpause"))
         try await slideVolume(to: 100)

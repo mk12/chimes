@@ -1,9 +1,21 @@
 import AppIntents
 import AppKit
 import Foundation
+import os
 
 @MainActor
 class Scheduler {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Scheduler.self)
+    )
+    private static let formatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        formatter.timeZone = .current
+        return formatter
+    }()
+
     private let player: Player
     private var currentWorkItem: DispatchWorkItem?
 
@@ -71,7 +83,6 @@ class Scheduler {
             let start = Date(timeIntervalSinceReferenceDate: timestamp)
             let ahead = player.startAhead(chime: chime)
             let date = start + ahead
-            print("scheduling \(chime) for \(start) - \(date)")
             scheduleNextTick(for: date, fixedChime: chime)
         }
     #endif
@@ -82,6 +93,9 @@ class Scheduler {
     ) {
         let chime = fixedChime ?? getChime(date: date)!
         let ahead = player.startAhead(chime: chime)
+        Self.logger.debug(
+            "scheduling \(Self.formatter.string(from: date)) minus \(ahead)s"
+        )
         let delay = (date - ahead).timeIntervalSinceNow
         // This can happen if scheduling *right* before,
         // without enough extra time for fading out music etc.
@@ -102,6 +116,7 @@ class Scheduler {
     }
 
     private func tick(date: Date, fixedChime: Player.Chime?) {
+        Self.logger.debug("chiming for \(Self.formatter.string(from: date))")
         let chime = fixedChime ?? getChime(date: date)
         guard let chime else { return }
         guard shouldPlay(chime: chime) else { return }
