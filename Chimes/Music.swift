@@ -12,18 +12,18 @@ class Music {
     private let musicApp = SBApplication(bundleIdentifier: "com.apple.Music")!
 
     @Binding private var enabled: Bool
-    @Binding private var adjustment: Double
+    @Binding private var slack: Double
 
     @Binding var duration: Double
 
     init(
         enabled: Binding<Bool>,
         duration: Binding<Double>,
-        adjustment: Binding<Double>,
+        slack: Binding<Double>,
     ) {
         _enabled = enabled
         _duration = duration
-        _adjustment = adjustment
+        _slack = slack
     }
 
     func isPlaying() -> Bool {
@@ -49,13 +49,25 @@ class Music {
         let n = 20
         let from = 100 - to
         let step = (to - from) / n
-        // Subtract the adjustment to account for other CPU activity
+        // Subtract the slack to account for other CPU activity
         // besides the sleeps contributing to duration.
-        let sleep = .seconds(duration - adjustment) / n
+        let sleep = .seconds(duration - slack) / n
+        let start = DispatchTime.now().uptimeNanoseconds
         for i in 0...n {
             musicApp.setValue(from + step * i, forKey: "soundVolume")
             try await Task.sleep(
                 for: sleep,
+                tolerance: .zero,
+                clock: .continuous
+            )
+        }
+        // Since slack is an overestimate, sleep for the remainder.
+        let elapsed =
+            Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000
+        let remaining = duration - elapsed
+        if remaining > 0.01 {
+            try await Task.sleep(
+                for: .seconds(remaining),
                 tolerance: .zero,
                 clock: .continuous
             )

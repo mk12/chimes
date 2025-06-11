@@ -18,9 +18,9 @@ struct ChimesApp: App {
     // never have the same note twice in a row).
     @AppStorage("strikeDuration") private var strikeDuration = 2.5
     @AppStorage("strikeInterval") private var strikeInterval = 2.5
-    @AppStorage("fadeMusicDuration") private var fadeMusicDuration = 1.0
     @AppStorage("timingAdjustment") private var timingAdjustment = 0.3
-    @AppStorage("fadeMusicAdjustment") private var fadeMusicAdjustment = 0.3
+    @AppStorage("fadeMusicDuration") private var fadeMusicDuration = 1.0
+    @AppStorage("fadeMusicSlack") private var fadeMusicSlack = 0.3
 
     @ObservedObject private var player: Player
     private let scheduler: Scheduler
@@ -42,7 +42,7 @@ struct ChimesApp: App {
         let music = Music(
             enabled: _fadeMusic.projectedValue,
             duration: _fadeMusicDuration.projectedValue,
-            adjustment: _fadeMusicAdjustment.projectedValue,
+            slack: _fadeMusicSlack.projectedValue,
         )
         let player = Player(
             music: music,
@@ -128,9 +128,9 @@ struct ChimesApp: App {
                 preStrikeDelay: $preStrikeDelay,
                 strikeDuration: $strikeDuration,
                 strikeInterval: $strikeInterval,
-                fadeMusicDuration: $fadeMusicDuration,
                 timingAdjustment: $timingAdjustment,
-                fadeMusicAdjustment: $fadeMusicAdjustment,
+                fadeMusicDuration: $fadeMusicDuration,
+                fadeMusicSlack: $fadeMusicSlack,
             )
         }
     }

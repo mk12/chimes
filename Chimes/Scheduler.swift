@@ -17,21 +17,22 @@ class Scheduler {
     }()
 
     private let player: Player
-    private var currentWorkItem: DispatchWorkItem?
+    private let timer: DispatchSourceTimer
 
     public var enabled = false {
         didSet {
             if enabled {
-                scheduleNextTick(after: Date())
+                start()
             } else {
-                currentWorkItem?.cancel()
-                player.stop()
+                stop()
             }
         }
     }
 
     init(player: Player) {
         self.player = player
+        timer = DispatchSource.makeTimerSource(flags: .strict, queue: .main)
+        timer.activate()
         let center = NSWorkspace.shared.notificationCenter
         // Only chime when the screen is awake.
         center.addObserver(
@@ -55,13 +56,18 @@ class Scheduler {
         )
     }
 
-    @objc private func onWake() {
-        if enabled { scheduleNextTick(after: Date()) }
+    private func start() {
+        scheduleNextTick(after: Date())
     }
 
-    @objc private func onSleep() {
-        if enabled { currentWorkItem?.cancel() }
+    private func stop() {
+        Self.logger.debug("stopping")
+        timer.suspend()
+        player.stop()
     }
+
+    @objc private func onWake() { if enabled { start() } }
+    @objc private func onSleep() { if enabled { stop() } }
 
     private func scheduleNextTick(after: Date) {
         let calendar = Calendar.current
@@ -93,32 +99,32 @@ class Scheduler {
     ) {
         let chime = fixedChime ?? getChime(date: date)!
         let ahead = player.startAhead(chime: chime)
-        Self.logger.debug(
-            "scheduling \(Self.formatter.string(from: date)) minus \(ahead)s"
-        )
-        let delay = (date - ahead).timeIntervalSinceNow
+        let dateStr = Self.formatter.string(from: date)
+        let aheadStr = String(format: "%.3f", ahead)
+        Self.logger.debug("scheduling \(dateStr) (\(aheadStr)s ahead)")
+        let target = date - ahead
+        let delay = target.timeIntervalSinceNow
         // This can happen if scheduling *right* before,
         // without enough extra time for fading out music etc.
         if delay < 0 { return }
         let deadline = DispatchWallTime.now() + delay
-        let workItem = DispatchWorkItem(qos: .userInteractive) { [weak self] in
-            // Add 30s so getChime will work if we are within 1 minute of the right time.
-            let date = Date().addingTimeInterval(ahead + 30)
-            self?.tick(date: date, fixedChime: fixedChime)
+        timer.setEventHandler(qos: .userInteractive) { [weak self] in
+            let error = Date().timeIntervalSince(target)
+            if abs(error) > 20 {
+                Self.logger.error("schedule for \(dateStr) off by \(error)s")
+                return
+            }
+            self?.tick(chime: chime)
             self?.scheduleNextTick(after: date)
         }
-        currentWorkItem?.cancel()
-        currentWorkItem = workItem
-        DispatchQueue.main.asyncAfter(
+        timer.schedule(
             wallDeadline: deadline,
-            execute: workItem,
+            repeating: .never,
+            leeway: .milliseconds(100)
         )
     }
 
-    private func tick(date: Date, fixedChime: Player.Chime?) {
-        Self.logger.debug("chiming for \(Self.formatter.string(from: date))")
-        let chime = fixedChime ?? getChime(date: date)
-        guard let chime else { return }
+    private func tick(chime: Player.Chime) {
         guard shouldPlay(chime: chime) else { return }
         Task.detached { [weak self] in
             guard let self else { return }
@@ -127,8 +133,9 @@ class Scheduler {
     }
 
     private func getChime(date: Date) -> Player.Chime? {
-        let minute = Calendar.current.component(.minute, from: date)
-        let hour = Calendar.current.component(.hour, from: date)
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: date)
+        let minute = calendar.component(.minute, from: date)
         return switch minute {
         case 0: .FullHour(hour % 12 == 0 ? 12 : hour % 12)
         case 15: .FirstQuarter

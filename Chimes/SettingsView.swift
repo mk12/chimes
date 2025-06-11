@@ -12,9 +12,9 @@ struct SettingsView<InstrumentPicker: View>: View {
     @Binding private var strikeDuration: Double
     @Binding private var strikeInterval: Double
 
-    @Binding private var fadeMusicDuration: Double
     @Binding private var timingAdjustment: Double
-    @Binding private var fadeMusicAdjustment: Double
+    @Binding private var fadeMusicDuration: Double
+    @Binding private var fadeMusicSlack: Double
 
     private let scheduler: Scheduler
     private let instrumentPicker: InstrumentPicker
@@ -31,9 +31,9 @@ struct SettingsView<InstrumentPicker: View>: View {
         preStrikeDelay: Binding<Double>,
         strikeDuration: Binding<Double>,
         strikeInterval: Binding<Double>,
-        fadeMusicDuration: Binding<Double>,
         timingAdjustment: Binding<Double>,
-        fadeMusicAdjustment: Binding<Double>,
+        fadeMusicDuration: Binding<Double>,
+        fadeMusicSlack: Binding<Double>,
     ) {
         self.scheduler = scheduler
         self.instrumentPicker = instrumentPicker
@@ -46,9 +46,9 @@ struct SettingsView<InstrumentPicker: View>: View {
         _preStrikeDelay = preStrikeDelay
         _strikeDuration = strikeDuration
         _strikeInterval = strikeInterval
-        _fadeMusicDuration = fadeMusicDuration
         _timingAdjustment = timingAdjustment
-        _fadeMusicAdjustment = fadeMusicAdjustment
+        _fadeMusicDuration = fadeMusicDuration
+        _fadeMusicSlack = fadeMusicSlack
     }
 
     private func durationField(_ label: String, value: Binding<Double>)
@@ -88,7 +88,7 @@ struct SettingsView<InstrumentPicker: View>: View {
             Divider()
             durationField("Timing Adjustment", value: $timingAdjustment)
             durationField("Fade Duration", value: $fadeMusicDuration)
-            durationField("Fade Adjustment", value: $fadeMusicAdjustment)
+            durationField("Fade Slack", value: $fadeMusicSlack)
             #if DEBUG
                 Divider()
                 HStack {

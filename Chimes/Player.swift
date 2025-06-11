@@ -107,7 +107,6 @@ class Player: ObservableObject {
     }
 
     private func reset() {
-        Self.logger.debug("resetting")
         sequencer.stop()
         sequencer.currentPositionInBeats = 0
         if track.lengthInBeats > 0 {
@@ -202,6 +201,7 @@ class Player: ObservableObject {
         )
         guard self.currentPlayId == playId else { return }
         reset()
+        Self.logger.trace("finished playing chime")
     }
 
     func startAhead(chime: Chime) -> TimeInterval {
