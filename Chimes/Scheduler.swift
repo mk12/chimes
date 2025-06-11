@@ -125,7 +125,10 @@ class Scheduler {
     }
 
     private func tick(chime: Player.Chime) {
-        guard shouldPlay(chime: chime) else { return }
+        if !shouldPlay(chime: chime) {
+            Self.logger.debug("skipping because of focus mode")
+            return
+        }
         Task.detached { [weak self] in
             guard let self else { return }
             try await player.play(chime, scheduled: true)

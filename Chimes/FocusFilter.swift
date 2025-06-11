@@ -1,4 +1,5 @@
 import AppIntents
+import os
 
 class FocusState {
     static let shared = FocusState()
@@ -10,6 +11,11 @@ class FocusState {
 }
 
 struct FocusFilter: SetFocusFilterIntent {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier!,
+        category: String(describing: Scheduler.self)
+    )
+
     static var title: LocalizedStringResource = "Filter Chimes"
     static var description: LocalizedStringResource =
         "Filter chimes in this focus mode."
@@ -41,6 +47,7 @@ struct FocusFilter: SetFocusFilterIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        Self.logger.debug("performing focus filter")
         let state = FocusState.shared
         state.firstQuarter = firstQuarter
         state.halfHour = halfHour
