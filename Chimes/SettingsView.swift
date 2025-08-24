@@ -70,7 +70,7 @@ struct SettingsView<InstrumentPicker: View>: View {
     var body: some View {
         VStack(alignment: .leading) {
             Toggle("Enable Chimes", isOn: $enabled)
-            Toggle("Fade Out Music", isOn: $fadeMusic)
+            Toggle("Fade Out Media", isOn: $fadeMusic)
             Divider()
             instrumentPicker
             Divider()

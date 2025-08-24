@@ -149,7 +149,7 @@ class Player: ObservableObject {
     private let P5: [Note] = [.B3, .FSharp4, .GSharp4, .E4]
 
     func play(_ chime: Chime, scheduled: Bool = false) async throws {
-        Self.logger.debug("playing chime \(String(describing: chime))")
+        Self.logger.log("playing chime \(String(describing: chime), privacy: .public)")
         // Don't let schedule override manual play.
         if scheduled && isPlaying { return }
         currentPlayId += 1
@@ -177,7 +177,7 @@ class Player: ObservableObject {
             try engine.start()
             try sequencer.start()
         } catch {
-            Self.logger.error("failed to play: \(error)")
+            Self.logger.error("failed to play: \(error, privacy: .public)")
             reset()
             return
         }
@@ -201,7 +201,7 @@ class Player: ObservableObject {
         )
         guard self.currentPlayId == playId else { return }
         reset()
-        Self.logger.trace("finished playing chime")
+        Self.logger.log("finished playing chime")
     }
 
     func startAhead(chime: Chime) -> TimeInterval {

@@ -61,7 +61,7 @@ class Scheduler {
     }
 
     private func stop() {
-        Self.logger.debug("stopping")
+        Self.logger.log("stopping")
         timer.suspend()
         player.stop()
     }
@@ -101,7 +101,7 @@ class Scheduler {
         let ahead = player.startAhead(chime: chime)
         let dateStr = Self.formatter.string(from: date)
         let aheadStr = String(format: "%.3f", ahead)
-        Self.logger.debug("scheduling \(dateStr) (minus \(aheadStr)s)")
+        Self.logger.log("scheduling \(dateStr, privacy: .public) (minus \(aheadStr, privacy: .public)s)")
         let target = date - ahead
         let delay = target.timeIntervalSinceNow
         // This can happen if scheduling *right* before,
@@ -111,7 +111,7 @@ class Scheduler {
         timer.setEventHandler(qos: .userInteractive) { [weak self] in
             let error = Date().timeIntervalSince(target)
             if abs(error) > 20 {
-                Self.logger.error("schedule for \(dateStr) off by \(error)s")
+                Self.logger.error("schedule for \(dateStr, privacy: .public) off by \(error, privacy: .public)s")
                 return
             }
             self?.tick(chime: chime)
@@ -126,7 +126,7 @@ class Scheduler {
 
     private func tick(chime: Player.Chime) {
         if !shouldPlay(chime: chime) {
-            Self.logger.debug("skipping because of focus mode")
+            Self.logger.log("skipping because of focus mode")
             return
         }
         Task.detached { [weak self] in

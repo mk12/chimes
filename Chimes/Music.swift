@@ -33,13 +33,13 @@ class Music {
     }
 
     func fadeOut() async throws {
-        Self.logger.debug("fading out music")
+        Self.logger.log("fading out music")
         try await slideVolume(to: 0)
         musicApp.perform(NSSelectorFromString("pause"))
     }
 
     func fadeIn() async throws {
-        Self.logger.debug("fading in music")
+        Self.logger.log("fading in music")
         // "playpause" seems more reliable than "resume"
         musicApp.perform(NSSelectorFromString("playpause"))
         try await slideVolume(to: 100)
